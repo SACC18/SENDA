@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { Link } from 'react-router-dom' // <--- 1. IMPORTAR LINK
 import Navbar from '../components/Navbar'
 import Notification from '../components/Notification'
-import { UserCircleIcon, BriefcaseIcon, SparklesIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline'
+// 2. IMPORTAR FLECHA IZQUIERDA
+import { UserCircleIcon, BriefcaseIcon, SparklesIcon, DevicePhoneMobileIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
 
 export default function Profile() {
   const [loading, setLoading] = useState(true)
@@ -43,7 +45,7 @@ export default function Profile() {
       if (error) throw error
 
       setId(user.id)
-      setEmail(user.email) // El email viene de auth, no de profiles usualmente, pero aquí lo visualizamos
+      setEmail(user.email) 
       setFullName(data.full_name)
       setRole(data.role)
       setBio(data.bio || '')
@@ -93,6 +95,14 @@ export default function Profile() {
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         
+        {/* 3. BOTÓN DE VOLVER (NUEVO) */}
+        <div className="mb-6">
+            <Link to="/dashboard" className="btn btn-ghost hover:bg-base-300 gap-2 pl-0 transition-all hover:-translate-x-1">
+                <ArrowLeftIcon className="w-5 h-5" />
+                Volver al Dashboard
+            </Link>
+        </div>
+
         {/* ENCABEZADO PERFIL */}
         <div className="card bg-base-100 shadow-xl border border-base-200 mb-8 overflow-hidden">
             <div className="h-32 bg-gradient-to-r from-primary to-secondary opacity-80"></div>

@@ -73,21 +73,23 @@ export default function Navbar() {
     return (
         <div className="navbar bg-base-100/80 backdrop-blur-md sticky top-0 z-50 border-b border-base-200 shadow-sm transition-all duration-300">
 
-            {/* IZQUIERDA: LOGO + TEXTO (Usamos flex para asegurar centrado vertical) */}
+            {/* IZQUIERDA: LOGO CON LINK AL DASHBOARD */}
             <div className="flex-1 gap-2 items-center flex">
-                <a className="btn btn-ghost px-1 hover:bg-transparent normal-case text-xl flex items-center gap-2 group">
-                    {/* LOGO IMAGEN */}
+                {/* 2. AQUÍ ESTÁ EL CAMBIO DEL LOGO */}
+                <Link
+                    to="/dashboard"
+                    className="btn btn-ghost px-1 hover:bg-transparent normal-case text-xl flex items-center gap-2 group"
+                >
                     <img
                         src="/img/logo.png"
                         alt="Senda"
                         className="h-10 w-10 object-contain transition-transform group-hover:scale-110"
                         onError={(e) => { e.target.style.display = 'none' }}
                     />
-                    {/* LOGO TEXTO */}
                     <span className="font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
                         SENDA
                     </span>
-                </a>
+                </Link>
 
                 <div className="hidden md:flex items-center gap-2">
                     <span className="text-sm font-light opacity-50 mb-1">es</span>
