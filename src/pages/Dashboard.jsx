@@ -292,21 +292,50 @@ export default function Dashboard() {
                         <p>No tienes clases programadas aún.</p>
                      </div>
                   ) : (
-                     <ul className="timeline timeline-vertical timeline-compact lg:timeline-horizontal lg:overflow-x-auto pb-6">
-                        {tutorAppointments.map((app, index) => (
-                           <li key={app.id}>
-                              <hr className={index > 0 ? "bg-primary" : ""} />
-                              <div className="timeline-start text-[10px] font-mono opacity-50 mb-2 uppercase tracking-wider">{formatDateFull(app.slot.start_time)}</div>
-                              <div className="timeline-middle"><div className="w-4 h-4 rounded-full bg-primary ring-4 ring-primary/20"></div></div>
-                              <div className="timeline-end timeline-box bg-base-200 border-none shadow-sm mb-4 p-4 hover:scale-105 transition-transform cursor-pointer w-48">
-                                 <div className="text-lg font-black text-primary">{formatDate(app.slot.start_time)}</div>
-                                 <div className="font-bold truncate" title={app.student.full_name}>{app.student.full_name}</div>
-                                 <div className="mt-2"><span className="badge badge-secondary badge-outline text-xs font-bold truncate max-w-full">{app.topic}</span></div>
-                              </div>
-                              <hr className="bg-primary" />
-                           </li>
-                        ))}
-                     </ul>
+                    <ul className="timeline timeline-vertical timeline-compact lg:timeline-horizontal lg:overflow-x-auto pb-6">
+                    {tutorAppointments.map((app, index) => (
+                      <li key={app.id}>
+                        <hr className={index > 0 ? "bg-primary" : ""} />
+                        
+                        <div className="timeline-start text-[10px] font-mono opacity-50 mb-2 uppercase tracking-wider">
+                          {formatDateFull(app.slot.start_time)}
+                        </div>
+                        
+                        <div className="timeline-middle">
+                          <div className="w-4 h-4 rounded-full bg-primary ring-4 ring-primary/20"></div>
+                        </div>
+                        
+                        {/* CORRECCIÓN AQUÍ: 
+                            1. Cambiamos 'w-48' por 'w-64' (Más ancho) 
+                            2. Agregamos 'h-full' para uniformidad 
+                        */}
+                        <div className="timeline-end timeline-box bg-base-200 border-none shadow-sm mb-4 p-4 hover:scale-105 transition-transform cursor-pointer w-64">
+                          
+                          <div className="text-lg font-black text-primary">
+                            {formatDate(app.slot.start_time)}
+                          </div>
+                          
+                          <div className="font-bold truncate" title={app.student.full_name}>
+                            {app.student.full_name}
+                          </div>
+                          
+                          <div className="mt-2">
+                            {/* CORRECCIÓN EN EL BADGE:
+                                1. Quitamos 'truncate' y 'max-w-full'
+                                2. Agregamos 'whitespace-normal' (permite salto de línea)
+                                3. Agregamos 'h-auto py-2' (altura automática para acomodar 2 líneas)
+                                4. 'text-left' para que se lea mejor
+                            */}
+                            <span className="badge badge-secondary badge-outline text-xs font-bold whitespace-normal h-auto py-2 text-left leading-tight block">
+                              {app.topic}
+                            </span>
+                          </div>
+                  
+                        </div>
+                        <hr className="bg-primary" />
+                      </li>
+                    ))}
+                  </ul>
                   )}
                </div>
             </div>
