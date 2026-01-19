@@ -13,10 +13,12 @@ import {
   FireIcon, 
   StarIcon, 
   TrophyIcon, 
-  PlusCircleIcon 
+  PlusCircleIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/solid'
 
-// --- SUB-COMPONENTE: CUENTA REGRESIVA ---
 const CountdownTimer = ({ targetDate }) => {
   const [timeLeft, setTimeLeft] = useState(calculateTimeLeft())
 
@@ -59,8 +61,6 @@ export default function Dashboard() {
   const [userName, setUserName] = useState('')
   const [userId, setUserId] = useState(null)
   const [greeting, setGreeting] = useState('Hola')
-  
-  // ESTADO PARA NOTIFICACIONES GLOBALES
   const [notification, setNotification] = useState({ msg: '', type: '' })
 
   const [isBookingOpen, setIsBookingOpen] = useState(false)
@@ -70,6 +70,11 @@ export default function Dashboard() {
   const [newSlotDate, setNewSlotDate] = useState('')
   const [isPublishing, setIsPublishing] = useState(false)
 
+  // Estados para acciones sin alert
+  const [actionState, setActionState] = useState({ id: null, type: null })
+  const [processingId, setProcessingId] = useState(null)
+
+  // 1. CARGA INICIAL
   useEffect(() => {
     checkUserRole()
     const hour = new Date().getHours()
@@ -78,8 +83,30 @@ export default function Dashboard() {
     else setGreeting('Buenas noches')
   }, [])
 
+  // 2. MAGIA EN TIEMPO REAL (Realtime Subscription)
+  useEffect(() => {
+    // Escuchar cambios en la tabla 'appointments' (Citas)
+    // Escuchar cambios en la tabla 'availability_slots' (Horarios)
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        console.log('⚡ Cambio detectado en Citas: Recargando...')
+        refresh() // <-- ESTO RECARGA LOS DATOS AUTOMÁTICAMENTE
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'availability_slots' }, () => {
+        console.log('⚡ Cambio detectado en Horarios: Recargando...')
+        refresh() // <-- ESTO RECARGA LOS DATOS AUTOMÁTICAMENTE
+      })
+      .subscribe()
+
+    // Limpiar suscripción al salir
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, []) // Se ejecuta una vez al montar el componente
+
   const checkUserRole = async () => {
-    setLoading(true)
+    // setLoading(true) // Quitamos esto para que el refresh sea silencioso y no parpadee tanto
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       setUserId(user.id)
@@ -87,7 +114,6 @@ export default function Dashboard() {
       if (profile) {
         setRole(profile.role)
         setUserName(profile.full_name)
-        // AQUI ESTABA EL ERROR: Faltaba el 'await' para esperar los datos antes de quitar el loading
         if (profile.role === 'student') await fetchStudentData(user.id)
         else if (profile.role === 'tutor') await fetchTutorData(user.id)
       }
@@ -96,27 +122,69 @@ export default function Dashboard() {
   }
 
   const fetchStudentData = async (uid) => {
-    setNextAppointment(null) 
+    setNextAppointment(null)
     const { data, error } = await supabase
       .from('appointments')
       .select(`*, tutor:profiles!tutor_id (full_name), slot:availability_slots!slot_id (start_time)`)
       .eq('student_id', uid)
       .eq('status', 'scheduled')
-      .order('created_at', { ascending: false })
-      .limit(1) // IMPORTANTE: Asegura que solo traiga 1, evitando errores si hay duplicados
-      .maybeSingle()
-      
-    if (!error) setNextAppointment(data)
+    
+    if (!error && data && data.length > 0) {
+       const now = new Date()
+       const futureApps = data.filter(app => new Date(app.slot.start_time) > now)
+       futureApps.sort((a, b) => new Date(a.slot.start_time) - new Date(b.slot.start_time))
+       if (futureApps.length > 0) setNextAppointment(futureApps[0])
+    }
   }
 
   const fetchTutorData = async (uid) => {
-    const { data } = await supabase.from('appointments').select(`*, student:profiles!student_id (full_name, id), slot:availability_slots!slot_id (start_time)`).eq('tutor_id', uid).eq('status', 'scheduled').order('slot_id', { ascending: true })
-    setTutorAppointments(data || [])
+    const { data } = await supabase
+        .from('appointments')
+        .select(`*, student:profiles!student_id (full_name, id), slot:availability_slots!slot_id (start_time)`)
+        .eq('tutor_id', uid)
+        .eq('status', 'scheduled')
+    
+    if (data) {
+        data.sort((a, b) => new Date(a.slot.start_time) - new Date(b.slot.start_time))
+        setTutorAppointments(data)
+    }
   }
 
-  // Helper para pasar a los modales
   const handleNotify = (msg, type) => {
     setNotification({ msg, type })
+  }
+
+  const requestConfirmation = (id, type) => {
+    if (actionState.id === id && actionState.type === type) {
+        setActionState({ id: null, type: null })
+    } else {
+        setActionState({ id, type })
+    }
+  }
+
+  const executeAction = async (appointmentId, slotId, action) => {
+    setProcessingId(appointmentId)
+    setActionState({ id: null, type: null })
+
+    try {
+        const newStatus = action === 'completed' ? 'completed' : 'cancelled'
+        
+        const { error: appError } = await supabase.from('appointments').update({ status: newStatus }).eq('id', appointmentId)
+        if (appError) throw appError
+
+        if (action === 'cancelled') {
+            const { error: slotError } = await supabase.from('availability_slots').update({ is_booked: false }).eq('id', slotId)
+            if (slotError) throw slotError
+        }
+
+        handleNotify(action === 'completed' ? 'Clase finalizada' : 'Clase cancelada', 'success')
+        // No necesitamos llamar a fetchTutorData aquí manualmente porque el Realtime lo hará
+
+    } catch (error) {
+        handleNotify('Error: ' + error.message, 'error')
+    } finally {
+        setProcessingId(null)
+    }
   }
 
   const handleAddSlot = async (e) => {
@@ -148,7 +216,7 @@ export default function Dashboard() {
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         
-        {/* --- HERO SECTION --- */}
+        {/* HERO */}
         <div className="relative mb-12 p-8 lg:p-12 rounded-3xl bg-gradient-to-br from-primary to-secondary text-primary-content shadow-xl overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-black opacity-5 rounded-full blur-2xl"></div>
@@ -158,7 +226,7 @@ export default function Dashboard() {
                         {greeting}, <span className="underline decoration-wavy decoration-accent/50 underline-offset-4">{userName.split(' ')[0]}</span>
                     </h1>
                     <p className="text-lg opacity-90 max-w-lg">
-                        {role === 'tutor' ? 'Tu conocimiento ilumina el camino de otros.' : 'Cada sesión te acerca más a tus objetivos.'}
+                        {role === 'tutor' ? 'Gestiona tus clases y ayuda a tus estudiantes.' : 'Cada sesión te acerca más a tus objetivos.'}
                     </p>
                 </div>
                 {role === 'student' && (
@@ -177,7 +245,7 @@ export default function Dashboard() {
             </div>
         </div>
 
-        {/* --- VISTA DE ESTUDIANTE --- */}
+        {/* VISTA ESTUDIANTE */}
         {role === 'student' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 flex flex-col gap-8">
@@ -261,7 +329,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* --- VISTA DE TUTOR --- */}
+        {/* VISTA TUTOR */}
         {role === 'tutor' && (
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="w-full lg:w-1/3">
@@ -292,50 +360,39 @@ export default function Dashboard() {
                         <p>No tienes clases programadas aún.</p>
                      </div>
                   ) : (
-                    <ul className="timeline timeline-vertical timeline-compact lg:timeline-horizontal lg:overflow-x-auto pb-6">
-                    {tutorAppointments.map((app, index) => (
-                      <li key={app.id}>
-                        <hr className={index > 0 ? "bg-primary" : ""} />
-                        
-                        <div className="timeline-start text-[10px] font-mono opacity-50 mb-2 uppercase tracking-wider">
-                          {formatDateFull(app.slot.start_time)}
-                        </div>
-                        
-                        <div className="timeline-middle">
-                          <div className="w-4 h-4 rounded-full bg-primary ring-4 ring-primary/20"></div>
-                        </div>
-                        
-                        {/* CORRECCIÓN AQUÍ: 
-                            1. Cambiamos 'w-48' por 'w-64' (Más ancho) 
-                            2. Agregamos 'h-full' para uniformidad 
-                        */}
-                        <div className="timeline-end timeline-box bg-base-200 border-none shadow-sm mb-4 p-4 hover:scale-105 transition-transform cursor-pointer w-64">
-                          
-                          <div className="text-lg font-black text-primary">
-                            {formatDate(app.slot.start_time)}
-                          </div>
-                          
-                          <div className="font-bold truncate" title={app.student.full_name}>
-                            {app.student.full_name}
-                          </div>
-                          
-                          <div className="mt-2">
-                            {/* CORRECCIÓN EN EL BADGE:
-                                1. Quitamos 'truncate' y 'max-w-full'
-                                2. Agregamos 'whitespace-normal' (permite salto de línea)
-                                3. Agregamos 'h-auto py-2' (altura automática para acomodar 2 líneas)
-                                4. 'text-left' para que se lea mejor
-                            */}
-                            <span className="badge badge-secondary badge-outline text-xs font-bold whitespace-normal h-auto py-2 text-left leading-tight block">
-                              {app.topic}
-                            </span>
-                          </div>
-                  
-                        </div>
-                        <hr className="bg-primary" />
-                      </li>
-                    ))}
-                  </ul>
+                     <ul className="timeline timeline-vertical timeline-compact lg:timeline-horizontal lg:overflow-x-auto pb-6">
+                        {tutorAppointments.map((app, index) => (
+                           <li key={app.id}>
+                              <hr className={index > 0 ? "bg-primary" : ""} />
+                              <div className="timeline-start text-[10px] font-mono opacity-50 mb-2 uppercase tracking-wider">{formatDateFull(app.slot.start_time)}</div>
+                              <div className="timeline-middle"><div className="w-4 h-4 rounded-full bg-primary ring-4 ring-primary/20"></div></div>
+                              
+                              <div className="timeline-end timeline-box bg-base-200 border-none shadow-sm mb-4 p-4 hover:scale-105 transition-transform cursor-pointer w-64">
+                                 <div className="text-lg font-black text-primary">{formatDate(app.slot.start_time)}</div>
+                                 <div className="font-bold truncate" title={app.student.full_name}>{app.student.full_name}</div>
+                                 <div className="mt-2 mb-3"><span className="badge badge-secondary badge-outline text-xs font-bold whitespace-normal h-auto py-2 text-left leading-tight block">{app.topic}</span></div>
+                                 
+                                 {/* BOTONES DE ACCIÓN */}
+                                 <div className="flex gap-2 justify-end mt-2 pt-2 border-t border-base-300">
+                                    
+                                    {actionState.id === app.id && actionState.type === 'cancelled' ? (
+                                        <button onClick={() => executeAction(app.id, app.slot_id, 'cancelled')} className="btn btn-xs btn-error text-white animate-pulse">¿Confirmar?</button>
+                                    ) : (
+                                        <button onClick={() => requestConfirmation(app.id, 'cancelled')} className="btn btn-xs btn-ghost text-error" disabled={processingId === app.id} title="Cancelar"><XCircleIcon className="w-5 h-5"/></button>
+                                    )}
+
+                                    {actionState.id === app.id && actionState.type === 'completed' ? (
+                                        <button onClick={() => executeAction(app.id, app.slot_id, 'completed')} className="btn btn-xs btn-success text-white animate-pulse">¿Terminar?</button>
+                                    ) : (
+                                        <button onClick={() => requestConfirmation(app.id, 'completed')} className="btn btn-xs btn-success text-white" disabled={processingId === app.id} title="Finalizar Clase"><CheckCircleIcon className="w-4 h-4"/> Terminar</button>
+                                    )}
+
+                                 </div>
+                              </div>
+                              <hr className="bg-primary" />
+                           </li>
+                        ))}
+                     </ul>
                   )}
                </div>
             </div>
@@ -343,19 +400,8 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* --- PASAMOS 'handleNotify' A LOS MODALES PARA QUE ELLOS NOTIFIQUEN --- */}
-      <BookingModal 
-        isOpen={isBookingOpen} 
-        onClose={() => { setIsBookingOpen(false); refresh(); }} 
-        onNotify={handleNotify} 
-      />
-      <AppointmentModal 
-        appointment={nextAppointment} 
-        isOpen={isDetailsOpen} 
-        onClose={() => setIsDetailsOpen(false)} 
-        onUpdate={() => { setIsDetailsOpen(false); refresh(); }} 
-        onNotify={handleNotify} 
-      />
+      <BookingModal isOpen={isBookingOpen} onClose={() => { setIsBookingOpen(false); refresh(); }} onNotify={handleNotify} />
+      <AppointmentModal appointment={nextAppointment} isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} onUpdate={() => { setIsDetailsOpen(false); refresh(); }} onNotify={handleNotify} />
     </div>
   )
 }

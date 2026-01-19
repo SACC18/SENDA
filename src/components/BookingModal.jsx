@@ -29,7 +29,16 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
 
   const handleSelectTutor = async (tutor) => {
     setSelectedTutor(tutor); setLoading(true)
-    const { data } = await supabase.from('availability_slots').select('*').eq('tutor_id', tutor.id).eq('is_booked', false).order('start_time', { ascending: true })
+    
+    // FILTRO CLAVE: Solo mostrar horarios FUTUROS
+    const { data } = await supabase
+      .from('availability_slots')
+      .select('*')
+      .eq('tutor_id', tutor.id)
+      .eq('is_booked', false)
+      .gt('start_time', new Date().toISOString()) // <--- AQUÍ ESTÁ LA MAGIA
+      .order('start_time', { ascending: true })
+
     setSlots(data || []); setStep(3); setLoading(false)
   }
 
@@ -49,7 +58,7 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
       const { error: updateError } = await supabase.from('availability_slots').update({ is_booked: true }).eq('id', slot.id)
       if (updateError) throw updateError
 
-      onNotify(`¡Cita Confirmada con ${selectedTutor.full_name}!`, 'success')
+      onNotify(`✅ ¡Cita Confirmada con ${selectedTutor.full_name}!`, 'success')
       onClose()
 
     } catch (error) {
