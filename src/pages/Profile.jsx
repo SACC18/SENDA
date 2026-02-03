@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Link } from 'react-router-dom' // <--- 1. IMPORTAR LINK
+import { Link, useNavigate } from 'react-router-dom' 
 import Navbar from '../components/Navbar'
 import Notification from '../components/Notification'
-// 2. IMPORTAR FLECHA IZQUIERDA
-import { UserCircleIcon, BriefcaseIcon, SparklesIcon, DevicePhoneMobileIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
+// Agregamos ArrowPathIcon para el botón de recargar avatar
+import { UserCircleIcon, BriefcaseIcon, SparklesIcon, DevicePhoneMobileIcon, ArrowLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 
 export default function Profile() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [notification, setNotification] = useState({ msg: '', type: '' })
@@ -24,6 +25,9 @@ export default function Profile() {
   // Campos específicos
   const [nee, setNee] = useState('') // Estudiante
   const [specialty, setSpecialty] = useState('') // Tutor
+
+  // ESTADO NUEVO: Semilla del Avatar
+  const [avatarSeed, setAvatarSeed] = useState('')
 
   useEffect(() => {
     getProfile()
@@ -53,11 +57,26 @@ export default function Profile() {
       setNee(data.nee || '')
       setSpecialty(data.specialty || '')
 
+      // LOGICA DE AVATAR: Cargar el existente o generar uno con el nombre
+      if (data.avatar_url) {
+        setAvatarSeed(data.avatar_url)
+      } else {
+        // Usamos 'avataaars' que es el estilo visual que te gustó
+        setAvatarSeed(`https://api.dicebear.com/7.x/avataaars/svg?seed=${data.full_name}`)
+      }
+
     } catch (error) {
       setNotification({ msg: error.message, type: 'error' })
     } finally {
       setLoading(false)
     }
+  }
+
+  // FUNCIÓN: Generar Avatar Aleatorio
+  const randomizeAvatar = (e) => {
+    e.preventDefault()
+    const randomString = Math.random().toString(36).substring(7)
+    setAvatarSeed(`https://api.dicebear.com/7.x/avataaars/svg?seed=${randomString}`)
   }
 
   const updateProfile = async (e) => {
@@ -68,23 +87,27 @@ export default function Profile() {
         id,
         bio,
         phone,
+        avatar_url: avatarSeed, // <--- GUARDAMOS LA URL DEL AVATAR
         nee: role === 'student' ? nee : null,
         specialty: role === 'tutor' ? specialty : null,
         updated_at: new Date(),
       }
 
+      localStorage.setItem('senda-avatar', avatarSeed);
       const { error } = await supabase.from('profiles').upsert(updates)
       if (error) throw error
       
       setNotification({ msg: '¡Perfil actualizado correctamente!', type: 'success' })
+      
+      // REDIRECCIÓN SUAVE (Sin flash blanco)
+      setTimeout(() => navigate('/dashboard'), 1000)
+
     } catch (error) {
       setNotification({ msg: error.message, type: 'error' })
     } finally {
       setUpdating(false)
     }
   }
-
-  const avatarUrl = `https://api.dicebear.com/7.x/notionists/svg?seed=${fullName}&backgroundColor=e5e7eb`
 
   if (loading) return <div className="min-h-screen bg-base-200 flex items-center justify-center"><span className="loading loading-bars loading-lg text-primary"></span></div>
 
@@ -95,7 +118,7 @@ export default function Profile() {
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         
-        {/* 3. BOTÓN DE VOLVER (NUEVO) */}
+        {/* BOTÓN DE VOLVER */}
         <div className="mb-6">
             <Link to="/dashboard" className="btn btn-ghost hover:bg-base-300 gap-2 pl-0 transition-all hover:-translate-x-1">
                 <ArrowLeftIcon className="w-5 h-5" />
@@ -103,17 +126,31 @@ export default function Profile() {
             </Link>
         </div>
 
-        {/* ENCABEZADO PERFIL */}
+        {/* ENCABEZADO PERFIL CON GENERADOR DE AVATAR */}
         <div className="card bg-base-100 shadow-xl border border-base-200 mb-8 overflow-hidden">
             <div className="h-32 bg-gradient-to-r from-primary to-secondary opacity-80"></div>
             <div className="card-body -mt-12 relative z-10">
                 <div className="flex flex-col md:flex-row gap-6 items-center md:items-end">
-                    <div className="avatar">
-                        <div className="w-24 rounded-full ring ring-base-100 ring-offset-base-100 ring-offset-4 bg-white shadow-lg">
-                            <img src={avatarUrl} alt="Avatar" />
+                    
+                    {/* ZONA DE AVATAR EDITABLE */}
+                    <div className="relative group">
+                        <div className="avatar">
+                            <div className="w-28 rounded-full ring ring-base-100 ring-offset-base-100 ring-offset-4 bg-white shadow-lg transition-transform group-hover:scale-105">
+                                <img src={avatarSeed} alt="Avatar" />
+                            </div>
                         </div>
+                        
+                        {/* Botón Flotante para cambiar Avatar (CORREGIDO CENTRADO) */}
+                        <button 
+                            onClick={randomizeAvatar}
+                            className="btn btn-circle btn-sm btn-primary absolute bottom-0 right-0 shadow-lg border-2 border-base-100 tooltip tooltip-right flex items-center justify-center p-0"
+                            data-tip="¡Cambiar Look!"
+                        >
+                            <ArrowPathIcon className="w-4 h-4 text-white" />
+                        </button>
                     </div>
-                    <div className="flex-1 text-center md:text-left">
+
+                    <div className="flex-1 text-center md:text-left mb-2">
                         <h1 className="text-3xl font-bold">{fullName}</h1>
                         <p className="opacity-60 flex items-center justify-center md:justify-start gap-1">
                            {email} 
@@ -162,7 +199,7 @@ export default function Profile() {
                  </div>
             </div>
 
-            {/* COLUMNA DERECHA: INFORMACIÓN ESPECÍFICA (DINÁMICA) */}
+            {/* COLUMNA DERECHA: INFORMACIÓN ESPECÍFICA */}
             <div className="md:col-span-2">
                 <div className="card bg-base-100 shadow-xl border border-base-200 h-full">
                     <div className="card-body">

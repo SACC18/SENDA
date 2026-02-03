@@ -1,18 +1,48 @@
 <!doctype html>
-<html lang="es" data-theme="nord">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    
     <link rel="icon" type="image/png" href="/img/logo.png" />
-    
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
     <title>Senda | Claridad y Orden Académico</title>
-    
     <meta name="description" content="Plataforma de tutorías inclusivas." />
+
+    <script>
+      (function() {
+        try {
+          // 1. Recuperar tema guardado o usar 'nord' por defecto
+          const savedTheme = localStorage.getItem('senda-theme') || 'nord';
+          
+          // 2. Aplicar el tema INMEDIATAMENTE al HTML
+          document.documentElement.setAttribute('data-theme', savedTheme);
+
+          // 3. Forzar el color de fondo exacto del tema para evitar parpadeos
+          // (Estos códigos hexa coinciden con los colores de DaisyUI para esos temas)
+          const bgColors = {
+            'nord': '#ECEFF4',      // Gris muy claro
+            'dim': '#2A303C',       // Azul oscuro profundo
+            'bumblebee': '#ffffff'  // Blanco puro
+          };
+
+          if (bgColors[savedTheme]) {
+            document.documentElement.style.backgroundColor = bgColors[savedTheme];
+            document.body.style.backgroundColor = bgColors[savedTheme];
+          }
+
+          // 4. Aplicar tamaño de texto si existe
+          const savedSize = localStorage.getItem('senda-text-size');
+          if (savedSize) {
+            document.documentElement.style.fontSize = savedSize + '%';
+          }
+        } catch (e) {
+          console.error("Error aplicando tema inicial", e);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+
