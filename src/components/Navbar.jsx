@@ -11,10 +11,10 @@ export default function Navbar() {
     const [currentWordIndex, setCurrentWordIndex] = useState(0)
     const [displayText, setDisplayText] = useState("")
     const [isDeleting, setIsDeleting] = useState(false)
-    
+
     // Estados de Usuario
     const [userName, setUserName] = useState('Usuario')
-    
+
     // SOLUCIÓN 1: Leemos la memoria local INMEDIATAMENTE al iniciar
     // Si ya entraste antes, cargará tu foto en 0.00ms sin esperar a Supabase
     const [userAvatar, setUserAvatar] = useState(localStorage.getItem('senda-avatar') || null)
@@ -26,7 +26,7 @@ export default function Navbar() {
                 const { data } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single()
                 if (data) {
                     setUserName(data.full_name)
-                    
+
                     // Si encontramos un avatar nuevo en la base de datos, lo guardamos en memoria
                     if (data.avatar_url) {
                         setUserAvatar(data.avatar_url)
@@ -98,19 +98,19 @@ export default function Navbar() {
                         <EyeIcon className="h-6 w-6" />
                     </label>
                     <div tabIndex={0} className="menu dropdown-content mt-3 z-[1] p-4 shadow-2xl bg-base-100 rounded-box w-72 border border-base-200">
-                       <h3 className="font-bold text-lg mb-2 text-primary border-b border-base-200 pb-2 flex items-center gap-2"><AdjustmentsHorizontalIcon className="h-5 w-5" /> Ajustes Visuales</h3>
-                       <div className="form-control mb-4">
+                        <h3 className="font-bold text-lg mb-2 text-primary border-b border-base-200 pb-2 flex items-center gap-2"><AdjustmentsHorizontalIcon className="h-5 w-5" /> Ajustes Visuales</h3>
+                        <div className="form-control mb-4">
                             <label className="label"><span className="label-text font-semibold">Contraste</span></label>
                             <div className="join w-full grid grid-cols-3 gap-1">
                                 <input type="radio" className="join-item btn btn-sm bg-base-200 border-base-300" aria-label="Suave" onChange={() => setTheme('nord')} checked={theme === 'nord'} />
                                 <input type="radio" className="join-item btn btn-sm bg-gray-800 text-white hover:bg-gray-900 border-none" aria-label="Oscuro" onChange={() => setTheme('dim')} checked={theme === 'dim'} />
                                 <input type="radio" className="join-item btn btn-sm bg-yellow-400 text-black hover:bg-yellow-500 border-none font-bold" aria-label="Alto" onChange={() => setTheme('bumblebee')} checked={theme === 'bumblebee'} />
                             </div>
-                       </div>
-                       <div className="form-control">
+                        </div>
+                        <div className="form-control">
                             <label className="label"><span className="label-text font-semibold">Tamaño Texto</span><span className="badge badge-sm">{textSize}%</span></label>
                             <input type="range" min="90" max="120" value={textSize} onChange={(e) => setTextSize(e.target.value)} className="range range-xs range-primary" step="5" />
-                       </div>
+                        </div>
                     </div>
                 </div>
 

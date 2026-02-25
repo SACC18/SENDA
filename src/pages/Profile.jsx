@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { Link, useNavigate } from 'react-router-dom' 
 import Navbar from '../components/Navbar'
 import Notification from '../components/Notification'
-// Agregamos ArrowPathIcon para el botón de recargar avatar
 import { UserCircleIcon, BriefcaseIcon, SparklesIcon, DevicePhoneMobileIcon, ArrowLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 
 export default function Profile() {
@@ -26,7 +25,7 @@ export default function Profile() {
   const [nee, setNee] = useState('') // Estudiante
   const [specialty, setSpecialty] = useState('') // Tutor
 
-  // ESTADO NUEVO: Semilla del Avatar
+  // Semilla del Avatar
   const [avatarSeed, setAvatarSeed] = useState('')
 
   useEffect(() => {
