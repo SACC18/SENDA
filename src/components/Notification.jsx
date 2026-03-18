@@ -13,7 +13,7 @@ export default function Notification({ message, type, onClose }) {
 
   if (!message) return null
 
-  // Definir colores según el tipo (error o success)
+  // Definir colores según el tipo
   const alertClass = type === 'error' ? 'alert-error' : 'alert-success'
 
   return (

@@ -2,13 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Estilos globales para Senda */
 body {
-  /* Fondo suave y texto legible por defecto */
   @apply min-h-screen bg-base-200 text-base-content;
 }
 
-/* Clase utilitaria para accesibilidad que usaremos luego */
 .text-access-large {
   font-size: 1.25rem; /* 20px */
+}
+[data-theme="nord"] {
+  --rounded-btn: 1.9rem;
+}
+
+@keyframes bg-pan {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+.animate-bg-pan {
+  animation: bg-pan 20s infinite linear;
+  background-size: 200% 200%;
 }

@@ -26,13 +26,13 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
     }
   }, [isOpen])
 
-  // 1. OBTENER LAS MATERIAS DEL ESTUDIANTE
+  // OBTENER LAS MATERIAS DEL ESTUDIANTE
   const fetchMyAcademicData = async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // A. Buscar en qué curso estoy matriculado
+    // Buscar en qué curso estoy matriculado
     const { data: enrollment } = await supabase
       .from('enrollments')
       .select('course_id, courses(name)')
@@ -42,7 +42,7 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
     if (enrollment) {
       setMyCourse(enrollment.courses)
 
-      // B. Buscar las CLASES disponibles para ese curso (Materias + Profesores)
+      // Buscar las clases disponibles para ese curso
       const { data: classesData } = await supabase
         .from('classes')
         .select(`
@@ -59,13 +59,10 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
     setLoading(false)
   }
 
-  // 2. CUANDO SELECCIONA MATERIA -> CARGAR TEMAS ACTIVOS
+  // CUANDO SELECCIONA MATERIA: CARGAR TEMAS ACTIVOS
   const handleSelectSubject = async (classItem) => {
     setSelectedClass(classItem)
     setLoading(true)
-
-    // Traer solo los temas que estén marcados como VISIBLES (active) en la tabla intermedia
-    // OJO: Si no hay registros en visibility, asumimos oculto.
     const { data: activeTopics } = await supabase
       .from('class_topic_visibility')
       .select(`
@@ -74,17 +71,14 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
       `)
       .eq('class_id', classItem.id)
       .eq('is_active', true)
-      .order('topic_id', { ascending: true }) // Ordenar por ID o Unidad
-
-    // Mapeamos para limpiar la estructura
+      .order('topic_id', { ascending: true })
     const cleanTopics = activeTopics?.map(item => item.topics) || []
-
     setTopics(cleanTopics)
     setStep(2)
     setLoading(false)
   }
 
-  // 3. CUANDO SELECCIONA TEMA -> CARGAR HORARIOS DEL PROFESOR DE ESA CLASE
+  // CUANDO SELECCIONA TEMA: CARGAR HORARIOS DEL PROFESOR DE ESA CLASE
   const handleSelectTopic = async (topic) => {
     setSelectedTopic(topic)
     setLoading(true)
@@ -93,9 +87,9 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
     const { data } = await supabase
       .from('availability_slots')
       .select('*')
-      .eq('tutor_id', selectedClass.tutor_id) // El ID del profe viene de la clase
+      .eq('tutor_id', selectedClass.tutor_id)
       .eq('is_booked', false)
-      .gt('start_time', new Date().toISOString()) // Solo futuros
+      .gt('start_time', new Date().toISOString())
       .order('start_time', { ascending: true })
 
     setSlots(data || [])
@@ -108,17 +102,15 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
     const { data: { user } } = await supabase.auth.getUser()
 
     try {
-      // ... dentro de handleBookSlot ...
       const { error: appointError } = await supabase.from('appointments').insert({
-        student_id: user.id, 
-        tutor_id: selectedClass.tutor_id, 
-        slot_id: slot.id, 
+        student_id: user.id,
+        tutor_id: selectedClass.tutor_id,
+        slot_id: slot.id,
         topic: `${selectedClass.subjects.name}: ${selectedTopic.name}`,
-        topic_id: selectedTopic.id, // <--- NUEVO: Guardamos el ID del tema
-        subject_id: selectedClass.subject_id, // <--- NUEVO: También el ID de la materia (si agregaste esa columna, sino omítelo por ahora)
+        topic_id: selectedTopic.id,
+        subject_id: selectedClass.subject_id,
         status: 'scheduled'
       })
-      // ...
       if (appointError) throw appointError
 
       // Marcar slot ocupado
@@ -140,8 +132,6 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="modal-box w-full max-w-3xl bg-base-100 shadow-2xl border border-primary/20 p-6 min-h-[500px]">
-
-        {/* HEADER */}
         <div className="flex justify-between items-center mb-6 border-b border-base-200 pb-4">
           <div>
             <h3 className="font-bold text-2xl text-primary">
@@ -158,16 +148,12 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
           <button onClick={onClose} className="btn btn-circle btn-ghost btn-sm">✕</button>
         </div>
 
-        {/* CONTENIDO */}
         {loading ? (
           <div className="flex justify-center items-center h-60"><span className="loading loading-spinner loading-lg text-primary"></span></div>
         ) : (
           <div className="min-h-[300px]">
-
-            {/* PASO 1: MATERIAS */}
-            {/* PASO 1: MATERIAS */}
             {step === 1 && (
-              // 1. Agregamos 'auto-rows-fr' para que todas las celdas tengan la misma altura
+              // Agregamos 'auto-rows-fr' para que todas las celdas tengan la misma altura
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in-up auto-rows-fr">
                 {subjects.length === 0 ? (
                   <div className="col-span-2 text-center py-10 opacity-50">
@@ -176,13 +162,13 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
                   </div>
                 ) : (
                   subjects.map((cls) => (
-                    // 2. Agregamos 'h-full', 'items-start' y 'text-left' para manejar textos largos
+                    // Agregamos 'h-full', 'items-start' y 'text-left' para manejar textos largos
                     <button key={cls.id} onClick={() => handleSelectSubject(cls)} className="btn btn-outline h-full min-h-[80px] py-4 px-6 flex flex-row items-center justify-start gap-4 hover:btn-primary hover:scale-[1.02] transition-all group text-left whitespace-normal">
                       <div className="bg-base-200 p-3 rounded-full group-hover:bg-primary group-hover:text-white transition-colors shrink-0">
                         <BookOpenIcon className="w-6 h-6" />
                       </div>
                       <div className="flex-1">
-                        {/* 3. Ajuste de line-height y break-words */}
+                        // Ajuste de line-height y break-words
                         <span className="text-md md:text-lg font-bold block leading-tight mb-1">{cls.subjects.name}</span>
                         <span className="text-xs opacity-60 font-normal block">Prof: {cls.profiles.full_name}</span>
                       </div>
@@ -192,7 +178,6 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
               </div>
             )}
 
-            {/* PASO 2: TEMAS */}
             {step === 2 && (
               <div className="animate-fade-in-right">
                 <button onClick={() => setStep(1)} className="btn btn-sm btn-ghost mb-4 pl-0 gap-2"><ArrowLeftIcon className="w-4 h-4" /> Volver a Materias</button>
@@ -220,7 +205,6 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
               </div>
             )}
 
-            {/* PASO 3: HORARIOS */}
             {step === 3 && (
               <div className="animate-fade-in-right">
                 <button onClick={() => setStep(2)} className="btn btn-sm btn-ghost mb-4 pl-0 gap-2"><ArrowLeftIcon className="w-4 h-4" /> Volver a Temas</button>
@@ -259,7 +243,7 @@ export default function BookingModal({ isOpen, onClose, onNotify }) {
   )
 }
 
-// Icono auxiliar si no lo tenías importado
+// Icono auxiliar
 function ArrowLeftIcon(props) {
   return (
     <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
